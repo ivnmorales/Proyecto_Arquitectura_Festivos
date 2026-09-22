@@ -19,7 +19,7 @@ flowchart TD
 
         App["index.js / app.js<br/>Servidor Express"]
 
-        Routes["Rutas de Festivos<br/>festivos.rutas.js<br/>Verificar fecha / Obtener festivos del año"]
+        Routes["Rutas de Festivos<br/>festivos.rutas.js<br/>CRUD Festivos / Verificar fecha / Obtener festivos del año"]
 
         Validator["ValidadorFecha<br/>Validar fecha / Validar año"]
     end
@@ -32,7 +32,7 @@ flowchart TD
 
         Controller["FestivoController<br/>Recibe solicitudes y genera respuestas"]
 
-        Service["FestivoService<br/>Coordina la lógica de festivos"]
+        Service["FestivoService<br/>Coordina la lógica de festivos<br/>(CRUD, verificación, listado)"]
 
         Calculator["CalculadorFestivos<br/>Fecha fija<br/>Puente festivo<br/>Basado en Pascua<br/>Pascua + puente festivo"]
     end
@@ -43,7 +43,7 @@ flowchart TD
     subgraph DataAccessLayer["Capa de Acceso a Datos"]
         direction TB
 
-        Repository["FestivoRepository / Modelo<br/>festivo.modelo.js"]
+        Repository["FestivoRepository / Modelo<br/>festivo.modelo.js<br/>create, read, update, delete"]
     end
 
     %% =========================
@@ -58,7 +58,7 @@ flowchart TD
     %% =========================
     %% FLUJO DE LA PETICIÓN
     %% =========================
-    Client -->|"1. Petición HTTP<br/>fecha o año"| App
+    Client -->|"1. Petición HTTP<br/>fecha, año o datos de festivo"| App
 
     App -->|"2. Delega petición"| Routes
 
@@ -69,18 +69,19 @@ flowchart TD
     Controller -->|"5. Solicita operación"| Service
 
     %% =========================
-    %% CONSULTA DE CONFIGURACIÓN
+    %% CONSULTA O PERSISTENCIA
     %% =========================
-    Service -->|"6. Solicita datos de festivos"| Repository
+    Service -->|"6. Solicita/persiste datos de festivos"| Repository
 
-    Repository -->|"7. Consulta"| DB
+    Repository -->|"7. Consulta o escribe"| DB
 
     DB -.->|"8. Retorna documentos"| Repository
 
-    Repository -.->|"9. Retorna configuración"| Service
+    Repository -.->|"9. Retorna resultado"| Service
 
     %% =========================
     %% CÁLCULO DE FESTIVOS
+    %% (solo aplica a verificación y listado)
     %% =========================
     Service -->|"10. Solicita cálculo según el tipo"| Calculator
 
