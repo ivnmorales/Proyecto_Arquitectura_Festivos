@@ -21,7 +21,7 @@ flowchart TD
 
         Routes["Rutas de Festivos<br/>festivos.rutas.js<br/>CRUD Festivos / Verificar fecha / Obtener festivos del año"]
 
-        Validator["ValidadorFecha<br/>Validar fecha / Validar año"]
+        Validator["ValidadorFestivo<br/>Validar fecha / año / datos de festivo"]
     end
 
     %% =========================
@@ -34,7 +34,7 @@ flowchart TD
 
         Service["FestivoService<br/>Coordina la lógica de festivos<br/>(CRUD, verificación, listado)"]
 
-        Calculator["CalculadorFestivos<br/>Fecha fija<br/>Puente festivo<br/>Basado en Pascua<br/>Pascua + puente festivo"]
+        Calculator["CalculoFechasService<br/>Fecha fija<br/>Puente festivo<br/>Basado en Pascua<br/>Pascua + puente festivo"]
     end
 
     %% =========================
@@ -43,7 +43,7 @@ flowchart TD
     subgraph DataAccessLayer["Capa de Acceso a Datos"]
         direction TB
 
-        Repository["FestivoRepository / Modelo<br/>festivo.modelo.js<br/>create, read, update, delete"]
+        Repository["FestivoRepository / Modelo<br/>festivo.modelo.js<br/>CRUD y consultas de festivos"]
     end
 
     %% =========================
@@ -80,12 +80,12 @@ flowchart TD
     Repository -.->|"9. Retorna resultado"| Service
 
     %% =========================
-    %% CÁLCULO DE FESTIVOS
+    %% CÁLCULO DE FECHAS
     %% (solo aplica a verificación y listado)
     %% =========================
-    Service -->|"10. Solicita cálculo según el tipo"| Calculator
+    Service -->|"10. Si requiere cálculo"| Calculator
 
-    Calculator -.->|"11. Retorna fechas calculadas"| Service
+    Calculator -.->|"11. Retorna fecha calculada"| Service
 
     %% =========================
     %% RESPUESTA

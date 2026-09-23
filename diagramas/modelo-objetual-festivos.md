@@ -4,21 +4,6 @@
 classDiagram
 direction TB
 
-class Tipo {
-    +int id
-    +string tipo
-    +string modoCalculo
-    +array festivos
-    +calcularFecha(anio: int) Date
-}
-
-class Festivo {
-    +int dia
-    +int mes
-    +string nombre
-    +int diasPascua
-}
-
 class FestivoService {
     +crearFestivo(festivo: Festivo) Festivo
     +obtenerFestivo(id: int) Festivo
@@ -28,7 +13,30 @@ class FestivoService {
     +listarFestivosPorAnio(anio: int) array~Festivo~
 }
 
-Tipo "1" *-- "0..*" Festivo : festivos
+class CalculoFechasService {
+    +calcularFecha(festivo: Festivo, tipo: Tipo, anio: int) Date
+}
+
+class Tipo {
+    +int id
+    +string tipo
+    +string modoCalculo
+    +array festivos
+}
+
+class Festivo {
+    +int dia
+    +int mes
+    +string nombre
+    +int diasPascua
+}
+
 FestivoService ..> Tipo : usa
-FestivoService ..> Festivo : usa
+FestivoService ..> Festivo : gestiona
+FestivoService ..> CalculoFechasService : usa
+
+CalculoFechasService ..> Tipo : usa regla
+CalculoFechasService ..> Festivo : calcula
+
+Tipo "1" *-- "0..*" Festivo : festivos
 ```
