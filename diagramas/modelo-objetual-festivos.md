@@ -21,7 +21,6 @@ class Tipo {
     +int id
     +string tipo
     +string modoCalculo
-    +array festivos
 }
 
 class Festivo {
