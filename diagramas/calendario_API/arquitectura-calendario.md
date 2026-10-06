@@ -1,123 +1,222 @@
 # Diagrama de Arquitectura - API Calendario
 
 ```mermaid
-graph TD
+flowchart TD
 
     %% =========================
-    %% CAPA DE CLIENTE
+    %% MÓDULO DOMINIO
     %% =========================
-    subgraph ClientLayer["Capa de Cliente"]
-        direction TB
-
-        Client["Cliente Web / Postman"]
-
-    end
-
-    %% =========================
-    %% CAPA DE PRESENTACIÓN
-    %% =========================
-    subgraph PresentationLayer["Capa de Presentación / API"]
-        direction TB
-
-        Controller["CalendarioController<br/>Generar calendario / Listar calendario"]
-
-    end
-
-    %% =========================
-    %% CAPA DE LÓGICA DE NEGOCIO
-    %% =========================
-    subgraph BusinessLayer["Capa de Lógica de Negocio"]
+    subgraph DomainLayer["Módulo: dominio"]
         direction LR
 
-        Service["CalendarioService<br/>Recorre y clasifica los días del año<br/>Laboral / Fin de semana / Festivo"]
+        Entities["Calendario / Tipo"]
 
-        FestivosClient["FestivosClient<br/>Cliente HTTP para API Festivos"]
-
-        Service -->|"3. Si genera calendario, solicita festivos del año"| FestivosClient
-
-        FestivosClient -.->|"6. Retorna lista de festivos"| Service
-
+        DTOs["FestivoDto"]
     end
 
-    %% =========================
-    %% CAPA DE ACCESO A DATOS
-    %% =========================
-    subgraph DataAccessLayer["Capa de Acceso a Datos"]
-        direction TB
 
-        Repository["CalendarioRepository / TipoRepository<br/>Spring Data JPA"]
+    %% =========================
+    %% MÓDULO CORE
+    %% =========================
+    subgraph CoreLayer["Módulo: core"]
+        direction LR
 
+        ServiceInterfaces["ICalendarioServicio"]
+
+        RepositoryInterfaces["ICalendarioRepositorio / ITipoRepositorio"]
+
+        IntegrationInterfaces["IFestivosServicioExterno"]
     end
 
+
     %% =========================
-    %% CAPA DE PERSISTENCIA
+    %% MÓDULO APLICACIÓN
     %% =========================
-    subgraph PersistenceLayer["Capa de Persistencia"]
+    subgraph ApplicationLayer["Módulo: aplicación"]
         direction TB
+
+        CalendarService["CalendarioServicio"]
+    end
+
+
+    %% =========================
+    %% MÓDULO INFRAESTRUCTURA
+    %% =========================
+    subgraph InfrastructureLayer["Módulo: infraestructura"]
+        direction TB
+
+        RepositoryImpl["CalendarioRepositorio / TipoRepositorio"]
+
+        JpaRepositories["ICalendarioRepositorioJpa / ITipoRepositorioJpa"]
+
+        JpaEntities["CalendarioEntidad / TipoEntidad"]
+
+        Mappers["CalendarioMapeador / TipoMapeador"]
+
+        IntegrationExternal["FestivosServicioExterno"]
+
+        HttpService["HttpServicio"]
 
         DB[("Base de Datos - PostgreSQL")]
 
+        FestivosAPI["API Festivos<br/>Express JS + MongoDB"]
     end
 
+
     %% =========================
-    %% MICROSERVICIO FESTIVOS
+    %% MÓDULO PRESENTACIÓN
     %% =========================
-    subgraph FestivosAPI["Microservicio Festivos"]
+    subgraph PresentationLayer["Módulo: presentación"]
         direction TB
 
-        ExternalAPI["API Festivos<br/>Express JS + MongoDB"]
+        App["ApiApplication<br/>@SpringBootApplication"]
 
+        Controller["CalendarioControlador"]
     end
 
-    %% =========================
-    %% FLUJO PRINCIPAL
-    %% =========================
-    Client -->|"1. Petición HTTP con el año"| Controller
-
-    Controller -->|"2. Delega operación"| Service
-
-    FestivosClient -->|"4. GET festivos del año"| ExternalAPI
-
-    ExternalAPI -.->|"5. Lista de festivos JSON"| FestivosClient
-
-    Service -->|"7. Guarda calendario generado o consulta calendario"| Repository
-
-    Repository -->|"8. Inserta / Consulta"| DB
 
     %% =========================
-    %% FLUJO DE RETORNO
+    %% RELACIONES APLICACIÓN
     %% =========================
-    DB -.->|"9. Retorna registros"| Repository
+    CalendarService -.->|"Implementa"| ServiceInterfaces
 
-    Repository -.->|"10. Retorna calendario"| Service
+    CalendarService -->|"Inyecta"| RepositoryInterfaces
 
-    Service -.->|"11. Retorna resultado"| Controller
+    CalendarService -->|"Inyecta"| IntegrationInterfaces
 
-    Controller -.->|"12. Respuesta JSON"| Client
+    CalendarService -->|"Maneja"| Entities
 
-    %% =========================
-    %% ORDEN VISUAL DE LAS CAPAS
-    %% =========================
-    ClientLayer ~~~ PresentationLayer
+    CalendarService -->|"Usa"| DTOs
 
-    PresentationLayer ~~~ BusinessLayer
-
-    BusinessLayer ~~~ DataAccessLayer
-
-    DataAccessLayer ~~~ PersistenceLayer
 
     %% =========================
-    %% ESTILOS
+    %% RELACIONES INFRAESTRUCTURA
     %% =========================
-    style ClientLayer fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    RepositoryImpl -.->|"Implementa"| RepositoryInterfaces
 
-    style PresentationLayer fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    RepositoryImpl -->|"Inyecta"| JpaRepositories
 
-    style BusinessLayer fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    RepositoryImpl -->|"Usa"| Mappers
 
-    style DataAccessLayer fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    Mappers -->|"Transforma"| Entities
 
-    style PersistenceLayer fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    Mappers -->|"Transforma"| JpaEntities
 
-    style FestivosAPI fill:#eceff1,stroke:#607d8b,stroke-width:2px
+
+    %% =========================
+    %% INTEGRACIÓN API FESTIVOS
+    %% =========================
+    IntegrationExternal -.->|"Implementa"| IntegrationInterfaces
+
+    IntegrationExternal -->|"Usa"| DTOs
+
+    IntegrationExternal -->|"Usa"| HttpService
+
+    HttpService -->|"RestTemplate / GET"| FestivosAPI
+
+
+    %% =========================
+    %% JPA -> POSTGRESQL
+    %% =========================
+    JpaRepositories -->|"Spring Data JPA / SQL"| DB
+
+    JpaEntities -->|"Mapeo ORM @Entity"| DB
+
+
+    %% =========================
+    %% RELACIONES PRESENTACIÓN
+    %% =========================
+    Controller -->|"Inyecta"| ServiceInterfaces
+
+    Controller -->|"Usa"| Entities
+
+
+    %% =========================
+    %% ORDEN VISUAL
+    %% =========================
+    PresentationLayer ~~~ ApplicationLayer
+
+    ApplicationLayer ~~~ CoreLayer
+
+    CoreLayer ~~~ DomainLayer
+
+    ApplicationLayer ~~~ InfrastructureLayer
+
+
+    %% =========================
+    %% ESTILO GENERAL DE NODOS
+    %% =========================
+    classDef default fill:#FFFFFF,stroke:#334155,stroke-width:1.5px,color:#0F172A
+
+
+    %% =========================
+    %% ESTILOS DE LOS MÓDULOS
+    %% =========================
+    style PresentationLayer fill:#FFF4E5,stroke:#D97706,stroke-width:2px,color:#0F172A
+
+    style ApplicationLayer fill:#ECFDF3,stroke:#059669,stroke-width:2px,color:#0F172A
+
+    style CoreLayer fill:#EAF4FF,stroke:#2563EB,stroke-width:2px,color:#0F172A
+
+    style DomainLayer fill:#FEFCE8,stroke:#CA8A04,stroke-width:2px,color:#0F172A
+
+    style InfrastructureLayer fill:#F5F0FF,stroke:#7C3AED,stroke-width:2px,color:#0F172A
+
+
+    %% =========================
+    %% ESTILOS DE PRESENTACIÓN
+    %% =========================
+    style App fill:#FFFFFF,stroke:#D97706,stroke-width:1.5px,color:#0F172A
+
+    style Controller fill:#FFFFFF,stroke:#D97706,stroke-width:1.5px,color:#0F172A
+
+
+    %% =========================
+    %% ESTILOS DE APLICACIÓN
+    %% =========================
+    style CalendarService fill:#FFFFFF,stroke:#059669,stroke-width:1.5px,color:#0F172A
+
+
+    %% =========================
+    %% ESTILOS DE CORE
+    %% =========================
+    style ServiceInterfaces fill:#FFFFFF,stroke:#2563EB,stroke-width:1.5px,color:#0F172A
+
+    style RepositoryInterfaces fill:#FFFFFF,stroke:#2563EB,stroke-width:1.5px,color:#0F172A
+
+    style IntegrationInterfaces fill:#FFFFFF,stroke:#2563EB,stroke-width:1.5px,color:#0F172A
+
+
+    %% =========================
+    %% ESTILOS DE DOMINIO
+    %% =========================
+    style Entities fill:#FFFFFF,stroke:#CA8A04,stroke-width:1.5px,color:#0F172A
+
+    style DTOs fill:#FFFFFF,stroke:#CA8A04,stroke-width:1.5px,color:#0F172A
+
+
+    %% =========================
+    %% ESTILOS DE INFRAESTRUCTURA
+    %% =========================
+    style RepositoryImpl fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
+
+    style JpaRepositories fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
+
+    style JpaEntities fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
+
+    style Mappers fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
+
+    style IntegrationExternal fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
+
+    style HttpService fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
+
+    style DB fill:#FFFFFF,stroke:#DC2626,stroke-width:1.5px,color:#0F172A
+
+    style FestivosAPI fill:#FFFFFF,stroke:#607D8B,stroke-width:1.5px,color:#0F172A
+
+
+    %% =========================
+    %% COLOR DE LAS CONEXIONES
+    %% =========================
+    linkStyle default stroke:#475569,stroke-width:1.5px
 ```
