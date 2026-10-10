@@ -17,9 +17,9 @@ flowchart TD
     subgraph PresentationLayer["Capa de Presentación / API"]
         direction TB
 
-        App["index.js / app.js<br/>Servidor Express"]
+       App["index.js / app.js<br/>Servidor Express<br/>Swagger UI /api-docs<br/>config/swagger.js"]
 
-        Routes["Rutas de Festivos<br/>festivos.rutas.js<br/>CRUD Festivos / Verificar fecha / Obtener festivos del año"]
+        Routes["Rutas de Festivos<br/>festivo.routes.js<br/>CRUD Festivos / Verificar fecha / Obtener festivos del año<br/>Documentación Swagger"]
 
         Validator["ValidadorFestivo<br/>Validar fecha / año / datos de festivo"]
     end
@@ -43,7 +43,7 @@ flowchart TD
     subgraph DataAccessLayer["Capa de Acceso a Datos"]
         direction TB
 
-        Repository["FestivoRepository / Modelo<br/>festivo.modelo.js<br/>CRUD y consultas de festivos"]
+        Repository["FestivoRepository / Modelo<br/>tipo.model.js<br/>CRUD y consultas de festivos"]
     end
 
     %% =========================
