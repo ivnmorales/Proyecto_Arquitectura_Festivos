@@ -130,8 +130,48 @@ async function crearFestivo(req, res) {
 
     } catch (error) {
 
-        return res.status(400).json({
-            mensaje: error.message
+        // =========================
+        // 404 - RECURSO NO EXISTE
+        // =========================
+        if (
+            error.message ===
+            "El tipo de festivo no existe"
+        ) {
+            return res.status(404).json({
+                mensaje: error.message
+            });
+        }
+
+
+        // =========================
+        // 400 - ERROR DEL CLIENTE
+        // =========================
+        if (
+            error.message ===
+                "Ya existe un festivo con ese nombre" ||
+
+            error.message ===
+                "El día y el mes no forman una fecha válida" ||
+
+            error.message ===
+                "Este tipo de festivo requiere diasPascua" ||
+
+            error.message ===
+                "diasPascua debe ser un número entero"
+        ) {
+            return res.status(400).json({
+                mensaje: error.message
+            });
+        }
+
+
+        // =========================
+        // 500 - ERROR INTERNO / BD
+        // =========================
+        return res.status(500).json({
+            mensaje:
+                "Error interno al crear el festivo",
+            error: error.message
         });
     }
 }
@@ -214,25 +254,51 @@ async function actualizarFestivo(req, res) {
 
     } catch (error) {
 
-        // Si el recurso no existe,
-        // se responde con 404.
+        // =========================
+        // 404 - RECURSO NO EXISTE
+        // =========================
         if (
             error.message ===
                 "El festivo no existe" ||
+
             error.message ===
                 "El tipo de festivo no existe"
         ) {
-
             return res.status(404).json({
                 mensaje: error.message
             });
         }
 
 
-        // Otros errores corresponden
-        // a datos inválidos o duplicados.
-        return res.status(400).json({
-            mensaje: error.message
+        // =========================
+        // 400 - ERROR DEL CLIENTE
+        // =========================
+        if (
+            error.message ===
+                "Ya existe un festivo con ese nombre" ||
+
+            error.message ===
+                "El día y el mes no forman una fecha válida" ||
+
+            error.message ===
+                "Este tipo de festivo requiere diasPascua" ||
+
+            error.message ===
+                "diasPascua debe ser un número entero"
+        ) {
+            return res.status(400).json({
+                mensaje: error.message
+            });
+        }
+
+
+        // =========================
+        // 500 - ERROR INTERNO / BD
+        // =========================
+        return res.status(500).json({
+            mensaje:
+                "Error interno al actualizar el festivo",
+            error: error.message
         });
     }
 }

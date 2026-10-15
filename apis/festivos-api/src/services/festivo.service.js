@@ -87,26 +87,104 @@ async function verificarFecha(
     };
 }
 
-function validarFestivoSegunTipo(tipo, datosFestivo) {
+// =========================
+// VALIDAR DÍA Y MES
+// =========================
+// Comprueba que una combinación día/mes
+// pueda existir.
+//
+// Febrero permite hasta 29 para no impedir
+// festivos que puedan existir en años bisiestos.
+function validarDiaMes(dia, mes) {
 
-    // Tipo 1 y 2:
-    // requieren una fecha base con día y mes.
-    if (tipo.id === 1 || tipo.id === 2) {
+    const diasPorMes = [
+        31, // Enero
+        29, // Febrero
+        31, // Marzo
+        30, // Abril
+        31, // Mayo
+        30, // Junio
+        31, // Julio
+        31, // Agosto
+        30, // Septiembre
+        31, // Octubre
+        30, // Noviembre
+        31  // Diciembre
+    ];
+
+
+    if (
+        !Number.isInteger(Number(dia)) ||
+        !Number.isInteger(Number(mes))
+    ) {
+        return false;
+    }
+
+
+    const diaNumero = Number(dia);
+    const mesNumero = Number(mes);
+
+
+    if (
+        mesNumero < 1 ||
+        mesNumero > 12
+    ) {
+        return false;
+    }
+
+
+    if (
+        diaNumero < 1 ||
+        diaNumero >
+            diasPorMes[mesNumero - 1]
+    ) {
+        return false;
+    }
+
+
+    return true;
+}
+
+// =========================
+// VALIDAR FESTIVO SEGÚN TIPO
+// =========================
+function validarFestivoSegunTipo(
+    tipo,
+    datosFestivo
+) {
+
+    // =========================
+    // TIPO 1 Y TIPO 2
+    // =========================
+    // Son festivos que parten de
+    // una fecha real con día y mes.
+    if (
+        tipo.id === 1 ||
+        tipo.id === 2
+    ) {
 
         if (
-            datosFestivo.dia < 1 ||
-            datosFestivo.mes < 1
+            !validarDiaMes(
+                datosFestivo.dia,
+                datosFestivo.mes
+            )
         ) {
             throw new Error(
-                "Este tipo de festivo requiere día y mes"
+                "El día y el mes no forman una fecha válida"
             );
         }
     }
 
 
-    // Tipo 3 y 4:
-    // se calculan con respecto a Pascua.
-    if (tipo.id === 3 || tipo.id === 4) {
+    // =========================
+    // TIPO 3 Y TIPO 4
+    // =========================
+    // Son festivos calculados con
+    // respecto al Domingo de Pascua.
+    if (
+        tipo.id === 3 ||
+        tipo.id === 4
+    ) {
 
         if (
             datosFestivo.diasPascua ===
@@ -114,6 +192,19 @@ function validarFestivoSegunTipo(tipo, datosFestivo) {
         ) {
             throw new Error(
                 "Este tipo de festivo requiere diasPascua"
+            );
+        }
+
+
+        if (
+            !Number.isInteger(
+                Number(
+                    datosFestivo.diasPascua
+                )
+            )
+        ) {
+            throw new Error(
+                "diasPascua debe ser un número entero"
             );
         }
     }

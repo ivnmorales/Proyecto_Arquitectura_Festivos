@@ -8,6 +8,18 @@ function crearFecha(anio, mes, dia) {
     );
 }
 
+// =========================
+// VALIDAR AÑO BISIESTO
+// =========================
+
+function esAnioBisiesto(anio) {
+
+    return (
+        anio % 400 === 0 ||
+        (anio % 4 === 0 && anio % 100 !== 0)
+    );
+}
+
 
 // =========================
 // AGREGAR DÍAS
@@ -118,7 +130,29 @@ function calcularFestivo(
     festivo,
     anio
 ) {
+
     let fecha;
+
+
+    // =========================
+    // VALIDAR 29 DE FEBRERO
+    // =========================
+
+    // Los tipos 1 y 2 utilizan
+    // una fecha fija de la base de datos.
+    //
+    // Si el festivo es 29 de febrero
+    // y el año no es bisiesto,
+    // el festivo no existe ese año.
+    if (
+        (tipo.id === 1 || tipo.id === 2) &&
+        festivo.dia === 29 &&
+        festivo.mes === 2 &&
+        !esAnioBisiesto(anio)
+    ) {
+
+        return null;
+    }
 
 
     // =========================
@@ -202,6 +236,7 @@ function calcularFestivo(
     // TIPO NO SOPORTADO
     // =========================
     else {
+
         throw new Error(
             `Tipo de festivo no soportado: ${tipo.id}`
         );
@@ -214,7 +249,6 @@ function calcularFestivo(
     };
 }
 
-
 // =========================
 // CALCULAR FESTIVOS DEL AÑO
 // =========================
@@ -223,13 +257,16 @@ function calcularFestivosAnio(
     tipos,
     anio
 ) {
+
     const festivosCalculados = [];
+
 
     for (const tipo of tipos) {
 
         if (!Array.isArray(tipo.festivos)) {
             continue;
         }
+
 
         for (const festivo of tipo.festivos) {
 
@@ -240,14 +277,21 @@ function calcularFestivosAnio(
                     anio
                 );
 
-            festivosCalculados.push(
-                festivoCalculado
-            );
+
+            // Si el festivo no existe
+            // en ese año, no se agrega.
+            // Ejemplo: 29 de febrero
+            // en un año no bisiesto.
+            if (festivoCalculado) {
+
+                festivosCalculados.push(
+                    festivoCalculado
+                );
+            }
         }
     }
 
 
-   
     festivosCalculados.sort(
         (a, b) =>
             a.fecha.localeCompare(b.fecha)
@@ -270,3 +314,5 @@ module.exports = {
     calcularFestivo,
     calcularFestivosAnio
 };
+
+
