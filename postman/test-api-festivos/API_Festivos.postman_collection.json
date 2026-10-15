@@ -1,0 +1,1231 @@
+{
+  "info": {
+    "name": "API Festivos",
+    "description": "Colección de pruebas de la API Festivos (Express + MongoDB).\n\nRequisitos: MongoDB con los datos de database/mongo/BDFestivos.mjs y la API ejecutándose en {{baseUrl}}.\n\nEjecutar en orden con el Collection Runner. La carpeta '3. CRUD Festivos' crea, consulta, actualiza y elimina un festivo de prueba y deja la base de datos como estaba. La carpeta '5. Caso especial - Año bisiesto' crea un festivo temporal del 29 de febrero, comprueba que se omita en 2026, que se calcule correctamente en 2028 y finalmente lo elimina.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "nombrePrueba",
+      "value": "Virgen de Chiquinquira"
+    },
+    {
+      "key": "nombrePruebaBisiesto",
+      "value": "Festivo prueba febrero"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Estado de la API",
+      "item": [
+        {
+          "name": "API activa",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Mensaje: API Festivos funcionando\", () => pm.expect(pm.response.json().mensaje).to.eql(\"API Festivos funcionando\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Consultas",
+      "item": [
+        {
+          "name": "Listar configuración (tipos y festivos)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const tipos = pm.response.json();",
+                  "pm.test(\"Devuelve los 4 tipos\", () => pm.expect(tipos.map(t => t.id)).to.include.members([1, 2, 3, 4]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Festivos del año 2026",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/obtener/2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "obtener",
+                "2026"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const f = pm.response.json();",
+                  "const fecha = n => (f.find(x => x.nombre === n) || {}).fecha;",
+                  "pm.test(\"Fijo: Navidad 2026-12-25\", () => pm.expect(fecha(\"Navidad\")).to.eql(\"2026-12-25\"));",
+                  "pm.test(\"Puente: Santos Reyes 2026-01-12\", () => pm.expect(fecha(\"Santos Reyes\")).to.eql(\"2026-01-12\"));",
+                  "pm.test(\"Pascua: Viernes Santo 2026-04-03\", () => pm.expect(fecha(\"Viernes Santo\")).to.eql(\"2026-04-03\"));",
+                  "pm.test(\"Pascua + puente: Corpus Christi 2026-06-08\", () => pm.expect(fecha(\"Corpus Christi\")).to.eql(\"2026-06-08\"));",
+                  "pm.test(\"Ordenados por fecha\", () => pm.expect(f.map(x => x.fecha)).to.eql([...f.map(x => x.fecha)].sort()));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Festivos del año 2025 (dos festivos el 30 de junio)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/obtener/2025",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "obtener",
+                "2025"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const f = pm.response.json().filter(x => x.fecha === \"2025-06-30\").map(x => x.nombre);",
+                  "pm.test(\"San Pedro y Sagrado Corazón coinciden\", () => pm.expect(f).to.include.members([\"San Pedro y San Pablo\", \"Sagrado Corazón de Jesús\"]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar fecha festiva (2026-12-25)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/verificar/2026/12/25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "verificar",
+                "2026",
+                "12",
+                "25"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"esFestivo = true\", () => pm.expect(r.esFestivo).to.eql(true));",
+                  "pm.test(\"Incluye Navidad\", () => pm.expect(r.festivos).to.include(\"Navidad\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar fecha trasladada (2026-06-15)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/verificar/2026/6/15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "verificar",
+                "2026",
+                "6",
+                "15"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"esFestivo = true\", () => pm.expect(r.esFestivo).to.eql(true));",
+                  "pm.test(\"Incluye Sagrado Corazón de Jesús\", () => pm.expect(r.festivos).to.include(\"Sagrado Corazón de Jesús\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar fecha NO festiva (2026-10-15)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/verificar/2026/10/15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "verificar",
+                "2026",
+                "10",
+                "15"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"esFestivo = false\", () => pm.expect(r.esFestivo).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar un festivo (Navidad)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/1/festivo/Navidad",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "1",
+                "festivo",
+                "Navidad"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const f = pm.response.json();",
+                  "pm.test(\"Navidad es 25/12\", () => { pm.expect(f.dia).to.eql(25); pm.expect(f.mes).to.eql(12); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. CRUD Festivos",
+      "description": "Flujo completo con un festivo nuevo que no está en la base de datos. Demuestra que las fechas se calculan desde MongoDB y no están quemadas en el código.",
+      "item": [
+        {
+          "name": "Verificar 2026-07-13 antes de crear (no festivo)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/verificar/2026/7/13",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "verificar",
+                "2026",
+                "7",
+                "13"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"esFestivo = false\", () => pm.expect(r.esFestivo).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear festivo (tipo 2, 9 de julio)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/2/festivo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "2",
+                "festivo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dia\": 9,\n  \"mes\": 7,\n  \"nombre\": \"{{nombrePrueba}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Mensaje: Festivo creado correctamente\", () => pm.expect(pm.response.json().mensaje).to.eql(\"Festivo creado correctamente\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar festivo creado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/2/festivo/{{nombrePrueba}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "2",
+                "festivo",
+                "{{nombrePrueba}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Datos guardados\", () => { const f = pm.response.json(); pm.expect(f.dia).to.eql(9); pm.expect(f.mes).to.eql(7); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar 2026-07-13 (trasladado al lunes)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/verificar/2026/7/13",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "verificar",
+                "2026",
+                "7",
+                "13"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"esFestivo = true\", () => pm.expect(r.esFestivo).to.eql(true));",
+                  "pm.test(\"Incluye {{nombrePrueba}}\", () => pm.expect(r.festivos).to.include(pm.collectionVariables.get(\"nombrePrueba\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar festivo (9 de agosto)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/2/festivo/{{nombrePrueba}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "2",
+                "festivo",
+                "{{nombrePrueba}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dia\": 9,\n  \"mes\": 8,\n  \"nombre\": \"{{nombrePrueba}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Mensaje: Festivo actualizado correctamente\", () => pm.expect(pm.response.json().mensaje).to.eql(\"Festivo actualizado correctamente\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar 2026-08-10 tras actualizar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/verificar/2026/8/10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "verificar",
+                "2026",
+                "8",
+                "10"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"esFestivo = true\", () => pm.expect(r.esFestivo).to.eql(true));",
+                  "pm.test(\"Incluye {{nombrePrueba}}\", () => pm.expect(r.festivos).to.include(pm.collectionVariables.get(\"nombrePrueba\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar festivo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/2/festivo/{{nombrePrueba}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "2",
+                "festivo",
+                "{{nombrePrueba}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Mensaje: Festivo eliminado correctamente\", () => pm.expect(pm.response.json().mensaje).to.eql(\"Festivo eliminado correctamente\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar festivo eliminado (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/2/festivo/{{nombrePrueba}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "2",
+                "festivo",
+                "{{nombrePrueba}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Mensaje: Festivo no encontrado\", () => pm.expect(pm.response.json().mensaje).to.eql(\"Festivo no encontrado\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Validaciones y errores",
+      "item": [
+        {
+          "name": "Fecha inexistente (2026-02-30)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/verificar/2026/2/30",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "verificar",
+                "2026",
+                "2",
+                "30"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje: La fecha no es válida\", () => pm.expect(pm.response.json().mensaje).to.eql(\"La fecha no es válida\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Año inválido (abc)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/obtener/abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "obtener",
+                "abc"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje: El año no es válido\", () => pm.expect(pm.response.json().mensaje).to.eql(\"El año no es válido\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear con día/mes imposible (31 de abril)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/1/festivo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "1",
+                "festivo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dia\": 31,\n  \"mes\": 4,\n  \"nombre\": \"Fecha imposible\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje: El día y el mes no forman una fecha válida\", () => pm.expect(pm.response.json().mensaje).to.eql(\"El día y el mes no forman una fecha válida\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear sin nombre",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/1/festivo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "1",
+                "festivo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dia\": 1,\n  \"mes\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje: Debe enviar un nombre válido\", () => pm.expect(pm.response.json().mensaje).to.eql(\"Debe enviar un nombre válido\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear tipo Pascua sin diasPascua",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/3/festivo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "3",
+                "festivo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dia\": 0,\n  \"mes\": 0,\n  \"nombre\": \"Sin dias Pascua\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje: Este tipo de festivo requiere diasPascua\", () => pm.expect(pm.response.json().mensaje).to.eql(\"Este tipo de festivo requiere diasPascua\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear festivo duplicado (Navidad)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/1/festivo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "1",
+                "festivo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dia\": 25,\n  \"mes\": 12,\n  \"nombre\": \"Navidad\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensaje: Ya existe un festivo con ese nombre\", () => pm.expect(pm.response.json().mensaje).to.eql(\"Ya existe un festivo con ese nombre\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear en tipo inexistente (9)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/9/festivo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "9",
+                "festivo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dia\": 1,\n  \"mes\": 3,\n  \"nombre\": \"Tipo inexistente\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Mensaje: El tipo de festivo no existe\", () => pm.expect(pm.response.json().mensaje).to.eql(\"El tipo de festivo no existe\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar festivo inexistente",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/1/festivo/No existe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "1",
+                "festivo",
+                "No existe"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dia\": 1,\n  \"mes\": 3,\n  \"nombre\": \"No existe\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Mensaje: El festivo no existe\", () => pm.expect(pm.response.json().mensaje).to.eql(\"El festivo no existe\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar festivo inexistente",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/1/festivo/No existe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "1",
+                "festivo",
+                "No existe"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Mensaje: Festivo no encontrado\", () => pm.expect(pm.response.json().mensaje).to.eql(\"Festivo no encontrado\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Caso especial - Año bisiesto",
+      "description": "Prueba el manejo de un festivo configurado el 29 de febrero. El registro se crea temporalmente en el tipo 2, se comprueba que no aparezca en 2026 (año no bisiesto), que sí se calcule en 2028 y se traslade al siguiente lunes, y se elimina al finalizar.",
+      "item": [
+        {
+          "name": "Limpiar prueba bisiesta previa (si existe)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/2/festivo/{{nombrePruebaBisiesto}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "2",
+                "festivo",
+                "{{nombrePruebaBisiesto}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 o 404\", () => pm.expect([200, 404]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear festivo 29 de febrero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/2/festivo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "2",
+                "festivo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dia\": 29,\n  \"mes\": 2,\n  \"nombre\": \"{{nombrePruebaBisiesto}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Festivo bisiesto creado\", () => pm.expect(pm.response.json().mensaje).to.eql(\"Festivo creado correctamente\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2026: no debe aparecer el 29 de febrero",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/obtener/2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "obtener",
+                "2026"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const festivos = pm.response.json();",
+                  "const nombre = pm.collectionVariables.get(\"nombrePruebaBisiesto\");",
+                  "pm.test(\"El festivo no aparece en 2026\", () => pm.expect(festivos.some(f => f.nombre === nombre)).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2028: debe calcularse y trasladarse al lunes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/obtener/2028",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "obtener",
+                "2028"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const festivos = pm.response.json();",
+                  "const nombre = pm.collectionVariables.get(\"nombrePruebaBisiesto\");",
+                  "const festivo = festivos.find(f => f.nombre === nombre);",
+                  "pm.test(\"El festivo aparece en 2028\", () => pm.expect(festivo).to.exist);",
+                  "pm.test(\"Se traslada al lunes 2028-03-06\", () => pm.expect(festivo.fecha).to.eql(\"2028-03-06\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar fecha trasladada 2028-03-06",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/verificar/2028/3/6",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "verificar",
+                "2028",
+                "3",
+                "6"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "const nombre = pm.collectionVariables.get(\"nombrePruebaBisiesto\");",
+                  "pm.test(\"esFestivo = true\", () => pm.expect(r.esFestivo).to.eql(true));",
+                  "pm.test(\"Incluye el festivo de prueba bisiesta\", () => pm.expect(r.festivos).to.include(nombre));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar festivo de prueba bisiesta",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/2/festivo/{{nombrePruebaBisiesto}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "2",
+                "festivo",
+                "{{nombrePruebaBisiesto}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Festivo eliminado\", () => pm.expect(pm.response.json().mensaje).to.eql(\"Festivo eliminado correctamente\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirmar eliminación del festivo bisiesto",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/festivos/tipo/2/festivo/{{nombrePruebaBisiesto}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "festivos",
+                "tipo",
+                "2",
+                "festivo",
+                "{{nombrePruebaBisiesto}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Festivo no encontrado\", () => pm.expect(pm.response.json().mensaje).to.eql(\"Festivo no encontrado\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
