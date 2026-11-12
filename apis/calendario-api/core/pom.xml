@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>calendario</groupId>
+        <artifactId>calendario-api</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>core</artifactId>
+    <name>core</name>
+    <description>Contratos (interfaces) de servicios, repositorios e integración</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>calendario</groupId>
+            <artifactId>dominio</artifactId>
+        </dependency>
+    </dependencies>
+</project>

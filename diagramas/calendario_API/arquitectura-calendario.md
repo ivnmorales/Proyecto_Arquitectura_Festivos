@@ -10,8 +10,6 @@ flowchart TD
         direction LR
 
         Entities["Calendario / Tipo"]
-
-        DTOs["FestivoDto"]
     end
 
 
@@ -21,11 +19,15 @@ flowchart TD
     subgraph CoreLayer["Módulo: core"]
         direction LR
 
-        ServiceInterfaces["ICalendarioServicio"]
+        ServiceInterfaces["ICalendarioServicio / ITipoServicio"]
 
         RepositoryInterfaces["ICalendarioRepositorio / ITipoRepositorio"]
 
         IntegrationInterfaces["IFestivosServicioExterno"]
+
+        CoreModels["FestivoExterno"]
+
+        CoreExceptions["SolicitudInvalidaExcepcion / ServicioExternoExcepcion<br/>RecursoNoEncontradoExcepcion / ConflictoExcepcion"]
     end
 
 
@@ -35,7 +37,7 @@ flowchart TD
     subgraph ApplicationLayer["Módulo: aplicación"]
         direction TB
 
-        CalendarService["CalendarioServicio"]
+        CalendarService["CalendarioServicio / TipoServicio"]
     end
 
 
@@ -55,11 +57,13 @@ flowchart TD
 
         IntegrationExternal["FestivosServicioExterno"]
 
+        IntegrationDTO["FestivoDto"]
+
         HttpService["HttpServicio"]
 
-        DB[("Base de Datos - PostgreSQL")]
+        DB[("Base de Datos PostgreSQL")]
 
-        FestivosAPI["API Festivos<br/>Express JS + MongoDB"]
+        FestivosAPI["API Festivos<br/>Node.js + Express + MongoDB"]
     end
 
 
@@ -71,12 +75,18 @@ flowchart TD
 
         App["ApiApplication<br/>@SpringBootApplication"]
 
-        Controller["CalendarioControlador"]
+        Controller["CalendarioControlador / TipoControlador"]
+
+        Swagger["SwaggerConfig"]
+
+        Handler["ExcepcionesGlobalesHandler"]
+
+        ErrorDTO["ErrorRespuesta"]
     end
 
 
     %% =========================
-    %% RELACIONES APLICACIÓN
+    %% APLICACIÓN -> CORE / DOMINIO
     %% =========================
     CalendarService -.->|"Implementa"| ServiceInterfaces
 
@@ -86,11 +96,15 @@ flowchart TD
 
     CalendarService -->|"Maneja"| Entities
 
-    CalendarService -->|"Usa"| DTOs
+    CalendarService -->|"Usa"| CoreModels
+
+    CalendarService -->|"Lanza excepciones de negocio"| CoreExceptions
+
+    IntegrationInterfaces -->|"Retorna"| CoreModels
 
 
     %% =========================
-    %% RELACIONES INFRAESTRUCTURA
+    %% INFRAESTRUCTURA -> CORE
     %% =========================
     RepositoryImpl -.->|"Implementa"| RepositoryInterfaces
 
@@ -98,6 +112,10 @@ flowchart TD
 
     RepositoryImpl -->|"Usa"| Mappers
 
+
+    %% =========================
+    %% MAPEO DE PERSISTENCIA
+    %% =========================
     Mappers -->|"Transforma"| Entities
 
     Mappers -->|"Transforma"| JpaEntities
@@ -108,11 +126,15 @@ flowchart TD
     %% =========================
     IntegrationExternal -.->|"Implementa"| IntegrationInterfaces
 
-    IntegrationExternal -->|"Usa"| DTOs
-
     IntegrationExternal -->|"Usa"| HttpService
 
-    HttpService -->|"RestTemplate / GET"| FestivosAPI
+    IntegrationExternal -->|"Mapea respuesta"| IntegrationDTO
+
+    IntegrationDTO -->|"Transforma FestivoDto → FestivoExterno"| CoreModels
+
+    HttpService -->|"HTTP GET"| FestivosAPI
+
+    HttpService -->|"Lanza ServicioExternoExcepcion"| CoreExceptions
 
 
     %% =========================
@@ -124,11 +146,19 @@ flowchart TD
 
 
     %% =========================
-    %% RELACIONES PRESENTACIÓN
+    %% PRESENTACIÓN
     %% =========================
     Controller -->|"Inyecta"| ServiceInterfaces
 
     Controller -->|"Usa"| Entities
+
+    Handler -->|"Devuelve"| ErrorDTO
+
+    Handler -->|"Captura (400 / 404 / 409 / 502)"| CoreExceptions
+
+    Swagger -.->|"Documenta"| Controller
+
+    App -.->|"Inicializa"| Controller
 
 
     %% =========================
@@ -144,13 +174,13 @@ flowchart TD
 
 
     %% =========================
-    %% ESTILO GENERAL DE NODOS
+    %% ESTILO GENERAL
     %% =========================
     classDef default fill:#FFFFFF,stroke:#334155,stroke-width:1.5px,color:#0F172A
 
 
     %% =========================
-    %% ESTILOS DE LOS MÓDULOS
+    %% ESTILOS DE MÓDULOS
     %% =========================
     style PresentationLayer fill:#FFF4E5,stroke:#D97706,stroke-width:2px,color:#0F172A
 
@@ -164,50 +194,46 @@ flowchart TD
 
 
     %% =========================
-    %% ESTILOS DE PRESENTACIÓN
+    %% PRESENTACIÓN
     %% =========================
     style App fill:#FFFFFF,stroke:#D97706,stroke-width:1.5px,color:#0F172A
-
     style Controller fill:#FFFFFF,stroke:#D97706,stroke-width:1.5px,color:#0F172A
+    style Swagger fill:#FFFFFF,stroke:#D97706,stroke-width:1.5px,color:#0F172A
+    style Handler fill:#FFFFFF,stroke:#D97706,stroke-width:1.5px,color:#0F172A
+    style ErrorDTO fill:#FFFFFF,stroke:#D97706,stroke-width:1.5px,color:#0F172A
 
 
     %% =========================
-    %% ESTILOS DE APLICACIÓN
+    %% APLICACIÓN
     %% =========================
     style CalendarService fill:#FFFFFF,stroke:#059669,stroke-width:1.5px,color:#0F172A
 
 
     %% =========================
-    %% ESTILOS DE CORE
+    %% CORE
     %% =========================
     style ServiceInterfaces fill:#FFFFFF,stroke:#2563EB,stroke-width:1.5px,color:#0F172A
-
     style RepositoryInterfaces fill:#FFFFFF,stroke:#2563EB,stroke-width:1.5px,color:#0F172A
-
     style IntegrationInterfaces fill:#FFFFFF,stroke:#2563EB,stroke-width:1.5px,color:#0F172A
+    style CoreModels fill:#FFFFFF,stroke:#2563EB,stroke-width:1.5px,color:#0F172A
+    style CoreExceptions fill:#FFFFFF,stroke:#2563EB,stroke-width:1.5px,color:#0F172A
 
 
     %% =========================
-    %% ESTILOS DE DOMINIO
+    %% DOMINIO
     %% =========================
     style Entities fill:#FFFFFF,stroke:#CA8A04,stroke-width:1.5px,color:#0F172A
 
-    style DTOs fill:#FFFFFF,stroke:#CA8A04,stroke-width:1.5px,color:#0F172A
-
 
     %% =========================
-    %% ESTILOS DE INFRAESTRUCTURA
+    %% INFRAESTRUCTURA
     %% =========================
     style RepositoryImpl fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
-
     style JpaRepositories fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
-
     style JpaEntities fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
-
     style Mappers fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
-
     style IntegrationExternal fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
-
+    style IntegrationDTO fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
     style HttpService fill:#FFFFFF,stroke:#7C3AED,stroke-width:1.5px,color:#0F172A
 
     style DB fill:#FFFFFF,stroke:#DC2626,stroke-width:1.5px,color:#0F172A
@@ -216,7 +242,7 @@ flowchart TD
 
 
     %% =========================
-    %% COLOR DE LAS CONEXIONES
+    %% CONEXIONES
     %% =========================
     linkStyle default stroke:#475569,stroke-width:1.5px
 ```

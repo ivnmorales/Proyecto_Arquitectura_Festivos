@@ -1,0 +1,1238 @@
+{
+  "info": {
+    "name": "API Calendario",
+    "description": "Colección de pruebas de la API Calendario (Spring Boot + PostgreSQL).\n\nRequisitos: la API Festivos ejecutándose (http://localhost:8080) con los datos de database/mongo/BDFestivos.mjs, la base PostgreSQL CalendarioLaboral con los registros de Tipo y la API Calendario ejecutándose en {{baseUrl}}.\n\nEjecutar en orden con el Collection Runner. Genera (o regenera) los calendarios de 2025, 2026 y 2028; como la generación es idempotente, la colección puede ejecutarse varias veces. La carpeta '7. CRUD Tipo' crea un tipo temporal y lo elimina al final.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "nombreTipo",
+      "value": ""
+    },
+    {
+      "key": "nombreTipoModificado",
+      "value": ""
+    },
+    {
+      "key": "idTipo",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Estado de la API",
+      "item": [
+        {
+          "name": "Documentación OpenAPI (Swagger)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const p = Object.keys(pm.response.json().paths);",
+                  "pm.test(\"Documenta generar y obtener\", () => pm.expect(p).to.include.members([\"/api/calendario/generar/{anio}\", \"/api/calendario/obtener/{anio}\"]));",
+                  "pm.test(\"Documenta el CRUD de Tipo\", () => pm.expect(p).to.include.members([\"/api/tipos/listar\", \"/api/tipos/obtener/{id}\", \"/api/tipos/buscar/{nombre}\", \"/api/tipos/agregar\", \"/api/tipos/modificar\", \"/api/tipos/eliminar/{id}\"]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Generar y obtener 2026",
+      "description": "Genera el año 2026 consultando la API Festivos y comprueba la clasificación de los días.",
+      "item": [
+        {
+          "name": "Generar calendario 2026",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/generar/2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "generar",
+                "2026"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde true\", () => pm.expect(pm.response.json()).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener calendario 2026",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/obtener/2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "obtener",
+                "2026"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test(\"Tiene 365 días\", () => pm.expect(d.length).to.eql(365));",
+                  "pm.test(\"Del 2026-01-01 al 2026-12-31\", () => { pm.expect(d[0].fecha).to.eql(\"2026-01-01\"); pm.expect(d[d.length - 1].fecha).to.eql(\"2026-12-31\"); });",
+                  "pm.test(\"Ordenados por fecha y sin fechas repetidas\", () => d.forEach((x, i) => { if (i > 0) pm.expect(x.fecha > d[i - 1].fecha).to.be.true; }));",
+                  "pm.test(\"Todos los días tienen un tipo válido (1, 2 o 3)\", () => d.forEach(x => pm.expect([1, 2, 3]).to.include(x.tipo.id)));",
+                  "const dia = pm.response.json().find(x => x.fecha === \"2026-12-25\");",
+                  "pm.test(\"2026-12-25 es Día festivo\", () => { pm.expect(dia).to.exist; pm.expect(dia.tipo.id).to.eql(3); pm.expect(dia.tipo.tipo).to.eql(\"Día festivo\"); });",
+                  "pm.test(\"2026-12-25 descripción: Navidad\", () => pm.expect(dia.descripcion).to.eql(\"Navidad\"));",
+                  "pm.test(\"Hay festivos con descripción\", () => pm.expect(d.filter(x => x.tipo.id === 3).every(x => x.descripcion)).to.be.true);",
+                  "pm.test(\"Días laborales y fines de semana sin descripción\", () => pm.expect(d.filter(x => x.tipo.id !== 3).every(x => x.descripcion === null)).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar lunes normal (2026-10-19)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/obtener/2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "obtener",
+                "2026"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const dia = pm.response.json().find(x => x.fecha === \"2026-10-19\");",
+                  "pm.test(\"2026-10-19 es Día laboral\", () => { pm.expect(dia).to.exist; pm.expect(dia.tipo.id).to.eql(1); pm.expect(dia.tipo.tipo).to.eql(\"Día laboral\"); });",
+                  "pm.test(\"2026-10-19 sin descripción\", () => pm.expect(dia.descripcion).to.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar sábado normal (2026-10-17)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/obtener/2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "obtener",
+                "2026"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const dia = pm.response.json().find(x => x.fecha === \"2026-10-17\");",
+                  "pm.test(\"2026-10-17 es Fin de Semana\", () => { pm.expect(dia).to.exist; pm.expect(dia.tipo.id).to.eql(2); pm.expect(dia.tipo.tipo).to.eql(\"Fin de Semana\"); });",
+                  "pm.test(\"2026-10-17 sin descripción\", () => pm.expect(dia.descripcion).to.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar festivo trasladado (Santos Reyes 2026-01-12)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/obtener/2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "obtener",
+                "2026"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const dia = pm.response.json().find(x => x.fecha === \"2026-01-12\");",
+                  "pm.test(\"2026-01-12 es Día festivo\", () => { pm.expect(dia).to.exist; pm.expect(dia.tipo.id).to.eql(3); pm.expect(dia.tipo.tipo).to.eql(\"Día festivo\"); });",
+                  "pm.test(\"2026-01-12 descripción: Santos Reyes\", () => pm.expect(dia.descripcion).to.eql(\"Santos Reyes\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar festivo en domingo (Domingo de Pascua 2026-04-05)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/obtener/2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "obtener",
+                "2026"
+              ]
+            },
+            "description": "Un festivo tiene prioridad sobre el fin de semana."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const dia = pm.response.json().find(x => x.fecha === \"2026-04-05\");",
+                  "pm.test(\"2026-04-05 es Día festivo\", () => { pm.expect(dia).to.exist; pm.expect(dia.tipo.id).to.eql(3); pm.expect(dia.tipo.tipo).to.eql(\"Día festivo\"); });",
+                  "pm.test(\"2026-04-05 descripción: Domingo de Pascua\", () => pm.expect(dia.descripcion).to.eql(\"Domingo de Pascua\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Regenerar sin duplicados",
+      "description": "Generar el mismo año otra vez reemplaza los datos sin duplicar fechas.",
+      "item": [
+        {
+          "name": "Generar 2026 por segunda vez",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/generar/2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "generar",
+                "2026"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde true\", () => pm.expect(pm.response.json()).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener 2026 (sigue con 365 días)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/obtener/2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "obtener",
+                "2026"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test(\"Tiene 365 días\", () => pm.expect(d.length).to.eql(365));",
+                  "pm.test(\"Del 2026-01-01 al 2026-12-31\", () => { pm.expect(d[0].fecha).to.eql(\"2026-01-01\"); pm.expect(d[d.length - 1].fecha).to.eql(\"2026-12-31\"); });",
+                  "pm.test(\"Ordenados por fecha y sin fechas repetidas\", () => d.forEach((x, i) => { if (i > 0) pm.expect(x.fecha > d[i - 1].fecha).to.be.true; }));",
+                  "pm.test(\"Todos los días tienen un tipo válido (1, 2 o 3)\", () => d.forEach(x => pm.expect([1, 2, 3]).to.include(x.tipo.id)));",
+                  "pm.test(\"Fechas únicas\", () => pm.expect(new Set(d.map(x => x.fecha)).size).to.eql(365));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Año bisiesto",
+      "item": [
+        {
+          "name": "Generar calendario 2028",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/generar/2028",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "generar",
+                "2028"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde true\", () => pm.expect(pm.response.json()).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener 2028 (366 días)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/obtener/2028",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "obtener",
+                "2028"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test(\"Tiene 366 días\", () => pm.expect(d.length).to.eql(366));",
+                  "pm.test(\"Del 2028-01-01 al 2028-12-31\", () => { pm.expect(d[0].fecha).to.eql(\"2028-01-01\"); pm.expect(d[d.length - 1].fecha).to.eql(\"2028-12-31\"); });",
+                  "pm.test(\"Ordenados por fecha y sin fechas repetidas\", () => d.forEach((x, i) => { if (i > 0) pm.expect(x.fecha > d[i - 1].fecha).to.be.true; }));",
+                  "pm.test(\"Todos los días tienen un tipo válido (1, 2 o 3)\", () => d.forEach(x => pm.expect([1, 2, 3]).to.include(x.tipo.id)));",
+                  "pm.test(\"Incluye el 29 de febrero\", () => pm.expect(d.some(x => x.fecha === \"2028-02-29\")).to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Festivos coincidentes",
+      "description": "En 2025 San Pedro y San Pablo y el Sagrado Corazón de Jesús caen el lunes 30 de junio.",
+      "item": [
+        {
+          "name": "Generar calendario 2025",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/generar/2025",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "generar",
+                "2025"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde true\", () => pm.expect(pm.response.json()).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener 2025: un solo día con ambos nombres",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/obtener/2025",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "obtener",
+                "2025"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test(\"Tiene 365 días\", () => pm.expect(d.length).to.eql(365));",
+                  "pm.test(\"Del 2025-01-01 al 2025-12-31\", () => { pm.expect(d[0].fecha).to.eql(\"2025-01-01\"); pm.expect(d[d.length - 1].fecha).to.eql(\"2025-12-31\"); });",
+                  "pm.test(\"Ordenados por fecha y sin fechas repetidas\", () => d.forEach((x, i) => { if (i > 0) pm.expect(x.fecha > d[i - 1].fecha).to.be.true; }));",
+                  "pm.test(\"Todos los días tienen un tipo válido (1, 2 o 3)\", () => d.forEach(x => pm.expect([1, 2, 3]).to.include(x.tipo.id)));",
+                  "const dia = d.filter(x => x.fecha === \"2025-06-30\");",
+                  "pm.test(\"Un solo registro para 2025-06-30\", () => pm.expect(dia.length).to.eql(1));",
+                  "pm.test(\"Clasificado como Día festivo\", () => pm.expect(dia[0].tipo.id).to.eql(3));",
+                  "pm.test(\"Descripción con ambos festivos\", () => { pm.expect(dia[0].descripcion).to.include(\"San Pedro y San Pablo\"); pm.expect(dia[0].descripcion).to.include(\"Sagrado Corazón de Jesús\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Validaciones y errores",
+      "item": [
+        {
+          "name": "Generar año inválido (0)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/generar/0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "generar",
+                "0"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test(\"Respuesta de error con estado 400 y mensaje\", () => { pm.expect(e.estado).to.eql(400); pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener año inválido (10000)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/obtener/10000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "obtener",
+                "10000"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test(\"Respuesta de error con estado 400 y mensaje\", () => { pm.expect(e.estado).to.eql(400); pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Año no numérico (abc)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/obtener/abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "obtener",
+                "abc"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test(\"Respuesta de error con estado 400 y mensaje\", () => { pm.expect(e.estado).to.eql(400); pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Método no permitido (GET en generar)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/generar/2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "generar",
+                "2026"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 405\", () => pm.response.to.have.status(405));",
+                  "const e = pm.response.json();",
+                  "pm.test(\"Respuesta de error con estado 405 y mensaje\", () => { pm.expect(e.estado).to.eql(405); pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. CRUD Tipo",
+      "description": "CRUD completo de la tabla Tipo. Crea un tipo temporal con nombre único, lo consulta, lo modifica y lo elimina, por lo que la base de datos queda como estaba. Los tipos 1, 2 y 3 no se pueden eliminar porque los usa la generación del calendario.",
+      "item": [
+        {
+          "name": "Listar tipos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/listar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "listar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const t = pm.response.json();",
+                  "pm.test(\"Incluye los tipos 1, 2 y 3\", () => pm.expect(t.map(x => x.id)).to.include.members([1, 2, 3]));",
+                  "pm.test(\"Ordenados por Id\", () => t.forEach((x, i) => { if (i > 0) pm.expect(x.id > t[i - 1].id).to.be.true; }));",
+                  "pm.test(\"Nombres sin espacios al final\", () => t.forEach(x => pm.expect(x.tipo).to.eql(x.tipo.trim())));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener tipo 3",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/obtener/3",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "obtener",
+                "3"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es Día festivo\", () => pm.expect(pm.response.json()).to.eql({ id: 3, tipo: \"Día festivo\" }));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar tipos por nombre (fin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/buscar/fin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "buscar",
+                "fin"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Encuentra Fin de Semana\", () => pm.expect(pm.response.json().map(x => x.id)).to.include(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agregar tipo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/agregar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "agregar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"{{nombreTipo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"nombreTipo\", \"Tipo prueba \" + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "const t = pm.response.json();",
+                  "pm.test(\"Devuelve el tipo creado con Id\", () => { pm.expect(t.id).to.be.above(3); pm.expect(t.tipo).to.eql(pm.collectionVariables.get(\"nombreTipo\")); });",
+                  "pm.collectionVariables.set(\"idTipo\", t.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener tipo creado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/obtener/{{idTipo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "obtener",
+                "{{idTipo}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Mismo nombre\", () => pm.expect(pm.response.json().tipo).to.eql(pm.collectionVariables.get(\"nombreTipo\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agregar tipo duplicado (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/agregar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "agregar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"{{nombreTipo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "const e = pm.response.json();",
+                  "pm.test(\"Respuesta de error con estado 409 y mensaje\", () => { pm.expect(e.estado).to.eql(409); pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agregar tipo sin nombre (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/agregar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "agregar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"   \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test(\"Respuesta de error con estado 400 y mensaje\", () => { pm.expect(e.estado).to.eql(400); pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Modificar tipo creado",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/modificar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "modificar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{idTipo}},\n  \"tipo\": \"{{nombreTipoModificado}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"nombreTipoModificado\", pm.collectionVariables.get(\"nombreTipo\") + \" modificado\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Nombre actualizado\", () => pm.expect(pm.response.json().tipo).to.eql(pm.collectionVariables.get(\"nombreTipoModificado\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar tipo modificado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/buscar/modificado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "buscar",
+                "modificado"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Aparece el tipo modificado\", () => pm.expect(pm.response.json().map(x => x.id)).to.include(Number(pm.collectionVariables.get(\"idTipo\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Modificar con nombre de otro tipo (409)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/modificar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "modificar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": {{idTipo}},\n  \"tipo\": \"Día laboral\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "const e = pm.response.json();",
+                  "pm.test(\"Respuesta de error con estado 409 y mensaje\", () => { pm.expect(e.estado).to.eql(409); pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Modificar tipo inexistente (404)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/modificar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "modificar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 999999,\n  \"tipo\": \"No existe\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "const e = pm.response.json();",
+                  "pm.test(\"Respuesta de error con estado 404 y mensaje\", () => { pm.expect(e.estado).to.eql(404); pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar tipo creado",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/eliminar/{{idTipo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "eliminar",
+                "{{idTipo}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde true\", () => pm.expect(pm.response.json()).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener tipo eliminado (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/obtener/{{idTipo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "obtener",
+                "{{idTipo}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "const e = pm.response.json();",
+                  "pm.test(\"Respuesta de error con estado 404 y mensaje\", () => { pm.expect(e.estado).to.eql(404); pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar tipo inexistente (404)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/eliminar/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "eliminar",
+                "999999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "const e = pm.response.json();",
+                  "pm.test(\"Respuesta de error con estado 404 y mensaje\", () => { pm.expect(e.estado).to.eql(404); pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Eliminar tipo requerido 1 (409)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/eliminar/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "eliminar",
+                "1"
+              ]
+            },
+            "description": "Día laboral lo usa la generación del calendario."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "const e = pm.response.json();",
+                  "pm.test(\"Respuesta de error con estado 409 y mensaje\", () => { pm.expect(e.estado).to.eql(409); pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtener tipo con Id no numérico (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tipos/obtener/abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tipos",
+                "obtener",
+                "abc"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "const e = pm.response.json();",
+                  "pm.test(\"Respuesta de error con estado 400 y mensaje\", () => { pm.expect(e.estado).to.eql(400); pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty; });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

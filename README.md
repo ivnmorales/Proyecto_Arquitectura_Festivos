@@ -17,6 +17,18 @@ Permite:
 - Documentar y probar los servicios mediante Swagger.
 - Ejecutar pruebas automáticas mediante Postman.
 
+La API de Calendario fue desarrollada con **Java, Spring Boot (Maven multi-módulo), Spring Data JPA y PostgreSQL**.
+
+Permite:
+
+- Generar el calendario laboral de un año, clasificando cada día como **Día laboral**, **Fin de Semana** o **Día festivo**.
+- Consultar los festivos del año en la API de Festivos.
+- Guardar y consultar el calendario en PostgreSQL.
+- Administrar los tipos de día (CRUD de la tabla `Tipo`).
+- Documentar y probar los servicios mediante Swagger y Postman.
+
+La documentación de la API de Calendario se encuentra en la sección [API Calendario](#api-calendario).
+
 ---
 
 # Requisitos
@@ -27,10 +39,14 @@ Antes de ejecutar el proyecto se debe tener instalado:
 - Node.js
 - npm
 - MongoDB
+- Java (JDK 21 o superior)
+- Maven
+- PostgreSQL
 
 Opcionalmente:
 
 - MongoDB Compass
+- pgAdmin
 - Postman
 
 ---
@@ -450,7 +466,7 @@ Antes de ejecutar las pruebas:
 postman/test-api-festivos/API_Festivos.postman_collection.json
 ```
 
-6. Abrir la colección **API Festivos test**.
+6. Abrir la colección **API Festivos**.
 7. Seleccionar **Run collection**.
 8. Ejecutar la colección completa en el orden definido.
 
@@ -503,7 +519,7 @@ Las pruebas que crean información temporal también eliminan dicha información
 
 ## Resultado de las pruebas
 
-La colección **API Festivos test** fue ejecutada mediante **Postman Collection Runner**.
+La colección **API Festivos** fue ejecutada mediante **Postman Collection Runner**.
 
 Resultado obtenido:
 
@@ -546,37 +562,346 @@ Content-Type: application/json
 
 ---
 
+# API Calendario
+
+La API de Calendario consulta los festivos del año en la API de Festivos, recorre todos los días del 1 de enero al 31 de diciembre y los guarda en PostgreSQL con la siguiente prioridad:
+
+| Condición | Tipo | Descripción |
+|---|---|---|
+| La fecha es festiva | Día festivo | Nombre del festivo |
+| No es festiva y es sábado o domingo | Fin de Semana | `null` |
+| Cualquier otro día | Día laboral | `null` |
+
+Si varios festivos caen el mismo día, se guarda un solo registro con todos los nombres (por ejemplo `San Pedro y San Pablo / Sagrado Corazón de Jesús`).
+
+Un año normal genera **365** registros y un año bisiesto **366**. Generar de nuevo un año reemplaza sus registros, sin duplicar fechas.
+
+---
+
+## C1. Crear la base de datos CalendarioLaboral
+
+Los scripts se encuentran en:
+
+```text
+database/postgresql/DDL - Calendario Laboral.sql
+database/postgresql/DML - Calendario Laboral.sql
+```
+
+Desde pgAdmin (o cualquier cliente PostgreSQL):
+
+1. Conectado a la base `postgres`, ejecutar del DDL solo la instrucción:
+
+```sql
+CREATE DATABASE CalendarioLaboral;
+```
+
+> La instrucción `DROP DATABASE` del DDL elimina la base existente con todos sus datos. Solo debe ejecutarse si se quiere crear la base desde cero.
+
+2. Cambiar la conexión a la base `calendariolaboral` y ejecutar el resto del DDL (tablas `Tipo` y `Calendario` con sus índices).
+3. Ejecutar el DML para registrar los tipos:
+
+```text
+1 = Día laboral
+2 = Fin de Semana
+3 = Día festivo
+```
+
+> PostgreSQL guarda los nombres sin comillas en minúsculas, por eso la base queda como `calendariolaboral`.
+
+Las tablas no las crea la aplicación (`spring.jpa.hibernate.ddl-auto=none`).
+
+---
+
+## C2. Configurar la conexión
+
+La configuración está en:
+
+```text
+apis/calendario-api/presentacion/src/main/resources/application.properties
+```
+
+Valores por defecto:
+
+| Propiedad | Variable de entorno | Valor por defecto |
+|---|---|---|
+| Puerto | `SERVER_PORT` | `8081` |
+| URL de la base | `DB_URL` | `jdbc:postgresql://localhost:5432/calendariolaboral` |
+| Usuario | `DB_USERNAME` | `postgres` |
+| Contraseña | `DB_PASSWORD` | *(vacía)* |
+| URL de la API Festivos | `FESTIVOS_API_URL` | `http://localhost:8080/api/festivos` |
+
+La contraseña de PostgreSQL **no se guarda en el repositorio**. Se define como variable de entorno en la terminal donde se ejecutará la API.
+
+PowerShell:
+
+```powershell
+$env:DB_PASSWORD = "tu_contraseña"
+```
+
+CMD:
+
+```bat
+set DB_PASSWORD=tu_contraseña
+```
+
+---
+
+## C3. Compilar
+
+```bash
+cd apis/calendario-api
+```
+
+```bash
+mvn clean install
+```
+
+Al finalizar debe mostrarse `BUILD SUCCESS` y generarse el archivo:
+
+```text
+apis/calendario-api/presentacion/target/presentacion-1.0.0.jar
+```
+
+---
+
+## C4. Ejecutar Festivos y Calendario al mismo tiempo
+
+La API de Calendario necesita que la API de Festivos esté ejecutándose. Se usan **dos terminales**.
+
+Terminal 1 - API Festivos (puerto 8080, con MongoDB encendido):
+
+```bash
+cd apis/festivos-api
+```
+
+```bash
+npm start
+```
+
+Terminal 2 - API Calendario (puerto 8081, con PostgreSQL encendido y `DB_PASSWORD` definido):
+
+```bash
+cd apis/calendario-api
+```
+
+```bash
+java -jar presentacion/target/presentacion-1.0.0.jar
+```
+
+Si la ejecución es correcta, la terminal mostrará:
+
+```text
+Tomcat started on port 8081
+Started ApiApplication
+```
+
+---
+
+## C5. Swagger
+
+```text
+http://localhost:8081/swagger-ui.html
+```
+
+---
+
+## C6. Endpoints
+
+### Generar el calendario de un año
+
+```http
+POST http://localhost:8081/api/calendario/generar/{anio}
+```
+
+Ejemplo:
+
+```text
+POST http://localhost:8081/api/calendario/generar/2026
+```
+
+Respuesta:
+
+```json
+true
+```
+
+### Obtener el calendario de un año
+
+```http
+GET http://localhost:8081/api/calendario/obtener/{anio}
+```
+
+Ejemplo:
+
+```text
+GET http://localhost:8081/api/calendario/obtener/2026
+```
+
+Respuesta (fragmento):
+
+```json
+[
+  {
+    "id": 1,
+    "fecha": "2026-01-01",
+    "tipo": { "id": 3, "tipo": "Día festivo" },
+    "descripcion": "Año nuevo"
+  },
+  {
+    "id": 2,
+    "fecha": "2026-01-02",
+    "tipo": { "id": 1, "tipo": "Día laboral" },
+    "descripcion": null
+  }
+]
+```
+
+### CRUD de Tipo
+
+La tabla `Tipo` se administra desde la API, sin entrar a la base de datos:
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/tipos/listar` | Lista todos los tipos ordenados por Id |
+| `GET` | `/api/tipos/obtener/{id}` | Obtiene un tipo por Id |
+| `GET` | `/api/tipos/buscar/{nombre}` | Busca tipos cuyo nombre contiene el texto (sin distinguir mayúsculas) |
+| `POST` | `/api/tipos/agregar` | Agrega un tipo (el Id lo asigna la API) |
+| `PUT` | `/api/tipos/modificar` | Modifica el nombre de un tipo |
+| `DELETE` | `/api/tipos/eliminar/{id}` | Elimina un tipo y responde `true` |
+
+Ejemplo para agregar:
+
+```text
+POST http://localhost:8081/api/tipos/agregar
+```
+
+```json
+{
+  "tipo": "Día cívico"
+}
+```
+
+Ejemplo para modificar:
+
+```text
+PUT http://localhost:8081/api/tipos/modificar
+```
+
+```json
+{
+  "id": 4,
+  "tipo": "Día cívico nacional"
+}
+```
+
+Reglas:
+
+- El nombre es obligatorio, de máximo 100 caracteres, y no puede repetirse (sin distinguir mayúsculas).
+- Los tipos **1 (Día laboral)**, **2 (Fin de Semana)** y **3 (Día festivo)** se pueden modificar, pero no eliminar, porque los usa la generación del calendario.
+
+### Errores
+
+| Código | Caso |
+|---|---|
+| `400` | Año inválido (no numérico, menor que 1 o mayor que 9999), Id no numérico, nombre de Tipo vacío o JSON mal formado |
+| `404` | El Tipo no existe |
+| `409` | Nombre de Tipo repetido, o Tipo requerido o en uso |
+| `502` | No fue posible consumir la API de Festivos |
+| `500` | Falta un registro de `Tipo` en PostgreSQL u otro error inesperado |
+
+---
+
+## C7. Pruebas con Postman
+
+La colección se encuentra en:
+
+```text
+postman/test-api-calendario/API_Calendario.postman_collection.json
+```
+
+Importarla en Postman y ejecutarla con **Run collection**, con las dos APIs en ejecución. La variable `baseUrl` tiene por defecto `http://localhost:8081`.
+
+| Carpeta | Pruebas realizadas |
+|---|---|
+| **1. Estado de la API** | Swagger documenta los endpoints de Calendario y de Tipo. |
+| **2. Generar y obtener 2026** | 365 días ordenados; Navidad, Santos Reyes y Domingo de Pascua como Día festivo; un lunes como Día laboral y un sábado como Fin de Semana. |
+| **3. Regenerar sin duplicados** | Generar 2026 de nuevo mantiene 365 fechas únicas. |
+| **4. Año bisiesto** | 2028 genera 366 días, incluido el 29 de febrero. |
+| **5. Festivos coincidentes** | En 2025 el 30 de junio es un solo registro con ambos festivos. |
+| **6. Validaciones y errores** | Años inválidos (`0`, `10000`, `abc`) y método no permitido. |
+| **7. CRUD Tipo** | Lista, obtiene y busca tipos; agrega un tipo temporal, lo modifica y lo elimina; valida nombre vacío o repetido (400/409), tipos inexistentes (404) y que el tipo 1 no se pueda eliminar (409). |
+
+La colección genera los años 2025, 2026 y 2028. Como la generación reemplaza el año completo y la carpeta de Tipo elimina el tipo que crea, puede ejecutarse varias veces.
+
+### Resultado de las pruebas
+
+La colección **API Calendario** fue ejecutada mediante **Postman Collection Runner**.
+
+Resultado obtenido:
+
+```text
+Pruebas ejecutadas: 94
+Pruebas aprobadas: 94
+Pruebas fallidas: 0
+Errores: 0
+```
+
+### Evidencia de ejecución
+
+![Resultado del Collection Runner - API Calendario](postman/test-api-calendario/evidencias/resultado_collection_runner.png)
+
+---
+
 # Estructura principal del proyecto
 
 ```text
 Proyecto_Arquitectura_Festivos/
 │
 ├── apis/
-│   └── festivos-api/
-│       ├── src/
-│       │   ├── config/
-│       │   ├── controllers/
-│       │   ├── middleware/
-│       │   ├── models/
-│       │   ├── repositories/
-│       │   ├── routes/
-│       │   ├── services/
-│       │   ├── app.js
-│       │   └── index.js
-│       │
-│       ├── .env.example
-│       ├── package.json
-│       └── package-lock.json
+│   ├── festivos-api/
+│   │   ├── src/
+│   │   │   ├── config/
+│   │   │   ├── controllers/
+│   │   │   ├── middleware/
+│   │   │   ├── models/
+│   │   │   ├── repositories/
+│   │   │   ├── routes/
+│   │   │   ├── services/
+│   │   │   ├── app.js
+│   │   │   └── index.js
+│   │   │
+│   │   ├── .env.example
+│   │   ├── package.json
+│   │   └── package-lock.json
+│   │
+│   └── calendario-api/
+│       ├── pom.xml
+│       ├── dominio/          (Calendario, Tipo)
+│       ├── core/             (interfaces, FestivoExterno, excepciones)
+│       ├── aplicacion/       (CalendarioServicio)
+│       ├── infraestructura/  (JPA, mapeadores, integración con Festivos)
+│       └── presentacion/     (ApiApplication, controlador, Swagger, errores)
 │
 ├── database/
-│   └── mongo/
-│       └── BDFestivos.mjs
+│   ├── mongo/
+│   │   └── BDFestivos.mjs
+│   │
+│   └── postgresql/
+│       ├── DDL - Calendario Laboral.sql
+│       └── DML - Calendario Laboral.sql
 │
 ├── diagramas/
+│   ├── festivos_API/
+│   └── calendario_API/
 │
 ├── postman/
-│   └── test-api-festivos/
-│       ├── API_Festivos.postman_collection.json
+│   ├── test-api-festivos/
+│   │   ├── API_Festivos.postman_collection.json
+│   │   └── evidencias/
+│   │       └── resultado_collection_runner.png
+│   │
+│   └── test-api-calendario/
+│       ├── API_Calendario.postman_collection.json
 │       └── evidencias/
 │           └── resultado_collection_runner.png
 │
@@ -647,4 +972,43 @@ Para ejecutar las pruebas automatizadas, importar en Postman:
 
 ```text
 postman/test-api-festivos/API_Festivos.postman_collection.json
+```
+
+## API Calendario
+
+Con la API de Festivos en ejecución y la base `CalendarioLaboral` creada (ver [C1](#c1-crear-la-base-de-datos-calendariolaboral)), en otra terminal (PowerShell):
+
+```powershell
+cd apis/calendario-api
+```
+
+```powershell
+$env:DB_PASSWORD = "tu_contraseña"
+```
+
+```powershell
+mvn clean install
+```
+
+```powershell
+java -jar presentacion/target/presentacion-1.0.0.jar
+```
+
+Abrir Swagger:
+
+```text
+http://localhost:8081/swagger-ui.html
+```
+
+Probar:
+
+```text
+POST http://localhost:8081/api/calendario/generar/2026
+GET  http://localhost:8081/api/calendario/obtener/2026
+```
+
+Para ejecutar las pruebas automatizadas, importar en Postman:
+
+```text
+postman/test-api-calendario/API_Calendario.postman_collection.json
 ```
